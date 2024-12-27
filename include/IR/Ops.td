@@ -31,7 +31,7 @@ def BF_Output : BF_Op<"output"> {
   let summary = "Output the byte at the data pointer - `.`";
 }
 
-def BF_Intput : BF_Op<"input"> {
+def BF_Input : BF_Op<"input"> {
   let summary = "Accept one byte of input, storing its value in the byte at the data pointer - `,`";
 }
 

@@ -59,6 +59,32 @@ void insertGlobalSymbols(mlir::Operation *rootOp) {
     }
 }
 
+std::pair<mlir::Value, mlir::Value> getDataPointer(mlir::OpBuilder &builder) {
+    auto loc = builder.getUnknownLoc();
+    auto ptrTy = builder.getType<mlir::LLVM::LLVMPointerType>();
+    auto i32 = builder.getI32Type();
+    auto ptr =
+        builder.create<mlir::LLVM::AddressOfOp>(loc, ptrTy, kDataPointerName);
+    auto load = builder.create<mlir::LLVM::LoadOp>(loc, i32, ptr);
+    return {ptr, load};
+}
+
+std::pair<mlir::Value, mlir::Value>
+getDataPointerValue(mlir::OpBuilder &builder, bool createLoad = true) {
+    auto [ptr, ptrValue] = getDataPointer(builder);
+    auto loc = ptr.getLoc();
+    auto ptrTy = builder.getType<mlir::LLVM::LLVMPointerType>();
+    auto i8 = builder.getI8Type();
+    auto dataPtr =
+        builder.create<mlir::LLVM::AddressOfOp>(loc, ptrTy, kDataArrayName);
+    auto gep = builder.create<mlir::LLVM::GEPOp>(
+        loc, ptrTy, i8, dataPtr, llvm::SmallVector<mlir::Value>{ptrValue});
+    mlir::Value load;
+    if (createLoad)
+        load = builder.create<mlir::LLVM::LoadOp>(loc, i8, gep);
+    return {gep, load};
+}
+
 struct ConvertPtrIncrement : mlir::OpConversionPattern<mlir::bf::IncrementPtr> {
     using mlir::OpConversionPattern<
         mlir::bf::IncrementPtr>::OpConversionPattern;
@@ -68,11 +94,7 @@ struct ConvertPtrIncrement : mlir::OpConversionPattern<mlir::bf::IncrementPtr> {
                     mlir::ConversionPatternRewriter &rewriter) const override {
         rewriter.setInsertionPoint(op);
         auto loc = rewriter.getUnknownLoc();
-        auto ptrTy = rewriter.getType<mlir::LLVM::LLVMPointerType>();
-        auto i32 = rewriter.getI32Type();
-        auto ptr = rewriter.create<mlir::LLVM::AddressOfOp>(loc, ptrTy,
-                                                            kDataPointerName);
-        auto load = rewriter.create<mlir::LLVM::LoadOp>(loc, i32, ptr);
+        auto [ptr, load] = getDataPointer(rewriter);
         // add 1
         auto one = rewriter.create<mlir::arith::ConstantIntOp>(loc, 1, 32);
         auto add = rewriter.create<mlir::arith::AddIOp>(op.getLoc(), load, one);
@@ -91,11 +113,7 @@ struct ConvertPtrDecrement : mlir::OpConversionPattern<mlir::bf::DecrementPtr> {
                     mlir::ConversionPatternRewriter &rewriter) const override {
         rewriter.setInsertionPoint(op);
         auto loc = rewriter.getUnknownLoc();
-        auto ptrTy = rewriter.getType<mlir::LLVM::LLVMPointerType>();
-        auto i32 = rewriter.getI32Type();
-        auto ptr = rewriter.create<mlir::LLVM::AddressOfOp>(loc, ptrTy,
-                                                            kDataPointerName);
-        auto load = rewriter.create<mlir::LLVM::LoadOp>(loc, i32, ptr);
+        auto [ptr, load] = getDataPointer(rewriter);
         // add -1
         auto negOne = rewriter.create<mlir::arith::ConstantIntOp>(loc, -1, 32);
         auto add =
@@ -116,21 +134,9 @@ struct ConvertDataIncrement
                     mlir::ConversionPatternRewriter &rewriter) const override {
         rewriter.setInsertionPoint(op);
         auto loc = rewriter.getUnknownLoc();
-        auto ptrTy = rewriter.getType<mlir::LLVM::LLVMPointerType>();
-        auto i32 = rewriter.getI32Type();
-        auto i8 = rewriter.getI8Type();
-
-        auto ptr = rewriter.create<mlir::LLVM::AddressOfOp>(loc, ptrTy,
-                                                            kDataPointerName);
-        auto ptrValue = rewriter.create<mlir::LLVM::LoadOp>(loc, i32, ptr);
-
-        auto dataPtr = rewriter.create<mlir::LLVM::AddressOfOp>(loc, ptrTy,
-                                                                kDataArrayName);
-        auto gep = rewriter.create<mlir::LLVM::GEPOp>(
-            loc, ptrTy, i8, dataPtr, llvm::SmallVector<mlir::Value>{ptrValue});
-        auto load = rewriter.create<mlir::LLVM::LoadOp>(loc, i32, gep);
+        auto [gep, load] = getDataPointerValue(rewriter);
         // add 1
-        auto one = rewriter.create<mlir::arith::ConstantIntOp>(loc, 1, 32);
+        auto one = rewriter.create<mlir::arith::ConstantIntOp>(loc, 1, 8);
         auto add = rewriter.create<mlir::arith::AddIOp>(op.getLoc(), load, one);
         rewriter.create<mlir::LLVM::StoreOp>(loc, add, gep);
         rewriter.eraseOp(op);
@@ -148,24 +154,49 @@ struct ConvertDataDecrement
                     mlir::ConversionPatternRewriter &rewriter) const override {
         rewriter.setInsertionPoint(op);
         auto loc = rewriter.getUnknownLoc();
-        auto ptrTy = rewriter.getType<mlir::LLVM::LLVMPointerType>();
-        auto i32 = rewriter.getI32Type();
-        auto i8 = rewriter.getI8Type();
-
-        auto ptr = rewriter.create<mlir::LLVM::AddressOfOp>(loc, ptrTy,
-                                                            kDataPointerName);
-        auto ptrValue = rewriter.create<mlir::LLVM::LoadOp>(loc, i32, ptr);
-
-        auto dataPtr = rewriter.create<mlir::LLVM::AddressOfOp>(loc, ptrTy,
-                                                                kDataArrayName);
-        auto gep = rewriter.create<mlir::LLVM::GEPOp>(
-            loc, ptrTy, i8, dataPtr, llvm::SmallVector<mlir::Value>{ptrValue});
-        auto load = rewriter.create<mlir::LLVM::LoadOp>(loc, i32, gep);
+        auto [gep, load] = getDataPointerValue(rewriter);
         // add -1
-        auto negOne = rewriter.create<mlir::arith::ConstantIntOp>(loc, -1, 32);
+        auto negOne = rewriter.create<mlir::arith::ConstantIntOp>(loc, -1, 8);
         auto add =
             rewriter.create<mlir::arith::AddIOp>(op.getLoc(), load, negOne);
         rewriter.create<mlir::LLVM::StoreOp>(loc, add, gep);
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
+
+struct ConvertOutput : mlir::OpConversionPattern<mlir::bf::Output> {
+    using mlir::OpConversionPattern<mlir::bf::Output>::OpConversionPattern;
+
+    mlir::LogicalResult
+    matchAndRewrite(mlir::bf::Output op, OpAdaptor adaptor,
+                    mlir::ConversionPatternRewriter &rewriter) const override {
+        rewriter.setInsertionPoint(op);
+        auto [gep, load] = getDataPointerValue(rewriter);
+        // call putchar
+        rewriter.create<mlir::func::CallOp>(
+            op.getLoc(), kPutCharName, llvm::SmallVector<mlir::Type>{},
+            llvm::SmallVector<mlir::Value>{load});
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
+
+struct ConvertInput : mlir::OpConversionPattern<mlir::bf::Input> {
+    using mlir::OpConversionPattern<mlir::bf::Input>::OpConversionPattern;
+
+    mlir::LogicalResult
+    matchAndRewrite(mlir::bf::Input op, OpAdaptor adaptor,
+                    mlir::ConversionPatternRewriter &rewriter) const override {
+        rewriter.setInsertionPoint(op);
+        auto [gep, load] = getDataPointerValue(rewriter, /*createLoad*/ false);
+        // call getchar
+        auto i8 = rewriter.getI8Type();
+        auto val = rewriter.create<mlir::func::CallOp>(
+            op.getLoc(), kGetCharName, llvm::SmallVector<mlir::Type>{i8},
+            llvm::SmallVector<mlir::Value>{});
+        rewriter.create<mlir::LLVM::StoreOp>(gep.getLoc(), val.getResult(0),
+                                             gep);
         rewriter.eraseOp(op);
         return mlir::success();
     }
@@ -181,13 +212,15 @@ struct BfToStandard : impl::BFToStandardBase<BfToStandard> {
 
         mlir::RewritePatternSet patterns(context);
         patterns.insert<ConvertPtrIncrement, ConvertPtrDecrement,
-                        ConvertDataIncrement, ConvertDataDecrement>(context);
+                        ConvertDataIncrement, ConvertDataDecrement,
+                        ConvertOutput, ConvertInput>(context);
 
         mlir::ConversionTarget target(*context);
         target.addIllegalDialect<mlir::bf::BFDialect>();
         target.addLegalDialect<mlir::arith::ArithDialect>();
         target.addLegalDialect<mlir::cf::ControlFlowDialect>();
         target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+        target.addLegalDialect<mlir::func::FuncDialect>();
         if (mlir::failed(mlir::applyPartialConversion(getOperation(), target,
                                                       std::move(patterns))))
             return signalPassFailure();
