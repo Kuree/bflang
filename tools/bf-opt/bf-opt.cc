@@ -6,6 +6,7 @@
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
 
 #include "Conversion/Passes.hh"
+#include "Transforms/Passes.hh"
 #include "IR/BFDialect.hh"
 
 int main(int argc, char *argv[]) {
@@ -15,6 +16,7 @@ int main(int argc, char *argv[]) {
                     mlir::LLVM::LLVMDialect, mlir::bf::BFDialect>();
     mlir::MlirOptMainConfig config;
     mlir::bf::conversions::registerPasses();
+    mlir::bf::registerPasses();
     return mlir::failed(
         mlir::MlirOptMain(argc, argv, "Brainfuck Optimization Tool", registry));
 }

@@ -5,4 +5,5 @@ target_link_libraries(
         bf-opt
         PRIVATE MLIROptLib
         MLIRBF
-        MLIRBFConversions)
+        MLIRBFConversions
+        MLIRBFTransforms)

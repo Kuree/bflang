@@ -1,5 +1,5 @@
-#ifndef BFC_PASSES_HH
-#define BFC_PASSES_HH
+#ifndef BFC_CONVERSION_PASSES_HH
+#define BFC_CONVERSION_PASSES_HH
 
 #include "mlir/Pass/Pass.h"
 
@@ -14,4 +14,4 @@ namespace conversions {
 
 } // namespace mlir::bf
 
-#endif // BFC_PASSES_HH
+#endif // BFC_CONVERSION_PASSES_HH

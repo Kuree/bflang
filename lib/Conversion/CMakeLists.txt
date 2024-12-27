@@ -4,7 +4,7 @@ add_mlir_library(MLIRBFConversions
         ADDITIONAL_HEADER_DIRS
 
         DEPENDS
-        BFPassesIncGen
+        BFConversionsIncGen
 
         LINK_LIBS PUBLIC
         MLIRBF
