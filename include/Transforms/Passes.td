@@ -11,4 +11,8 @@ def LiftLoopStartEnd : Pass<"lift-loop-start-end"> {
   ];
 }
 
+def ValidateBF : Pass<"validate-bf"> {
+  let summary = "Validate BF dialect";
+}
+
 #endif  // TRANSFORMS_PASSES_TD

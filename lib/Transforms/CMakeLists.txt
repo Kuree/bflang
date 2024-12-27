@@ -1,5 +1,6 @@
 add_mlir_library(MLIRBFTransforms
         LiftLoopStartEnd.cc
+        ValidateBF.cc
 
         ADDITIONAL_HEADER_DIRS
 
