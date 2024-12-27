@@ -43,12 +43,16 @@ def BF_LoopEnd : BF_Op<"loop.end"> {
   let summary = "If the byte at the data pointer is nonzero, then instead of moving the instruction pointer forward to the next command, jump it back to the command after the matching `[` command.";
 }
 
-def BF_Loop : BF_Op<"loop", [RecursiveMemoryEffects]> {
+def BF_Loop : BF_Op<"loop", [RecursiveMemoryEffects, SingleBlockImplicitTerminator<"LoopYield">]> {
   let summary = "High-level loop region to represent a `[]` code block";
 
-  let regions = (region MaxSizedRegion<1>:$region);
+  let regions = (region SizedRegion<1>:$region);
 
   let assemblyFormat = "$region attr-dict";
+}
+
+def BF_LoopYield : BF_Op<"loop.yield", [Terminator, HasParent<"Loop">]> {
+  let summary = "Terminator for `bf.loop`";
 }
 
 #endif  // IR_OPS_TD

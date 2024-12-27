@@ -55,6 +55,9 @@ struct ConvertStart : mlir::OpRewritePattern<mlir::bf::LoopStart> {
         rewriter.setInsertionPointAfter(loop);
         rewriter.inlineBlockBefore(dstBlock, loop->getBlock(),
                                    rewriter.getInsertionPoint());
+        // yield
+        rewriter.setInsertionPointToEnd(finalBlock);
+        rewriter.create<mlir::bf::LoopYield>(rewriter.getUnknownLoc());
 
         return mlir::success();
     }

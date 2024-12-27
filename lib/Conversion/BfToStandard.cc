@@ -257,6 +257,16 @@ struct ConvertLoop : mlir::OpConversionPattern<mlir::bf::Loop> {
     }
 };
 
+struct RemoveYield : mlir::OpConversionPattern<mlir::bf::LoopYield> {
+    using mlir::OpConversionPattern<mlir::bf::LoopYield>::OpConversionPattern;
+    mlir::LogicalResult
+    matchAndRewrite(mlir::bf::LoopYield op, OpAdaptor adaptor,
+                    mlir::ConversionPatternRewriter &rewriter) const override {
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
+
 struct BfToStandard : impl::BFToStandardBase<BfToStandard> {
     void runOnOperation() override {
         // first, populate the global values
@@ -268,7 +278,8 @@ struct BfToStandard : impl::BFToStandardBase<BfToStandard> {
         mlir::RewritePatternSet patterns(context);
         patterns.insert<ConvertPtrIncrement, ConvertPtrDecrement,
                         ConvertDataIncrement, ConvertDataDecrement,
-                        ConvertOutput, ConvertInput, ConvertLoop>(context);
+                        ConvertOutput, ConvertInput, ConvertLoop, RemoveYield>(
+            context);
 
         mlir::ConversionTarget target(*context);
         target.addIllegalDialect<mlir::bf::BFDialect>();
