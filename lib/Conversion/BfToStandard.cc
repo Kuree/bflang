@@ -2,7 +2,7 @@
 #include "IR/BFOps.hh"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -202,6 +202,61 @@ struct ConvertInput : mlir::OpConversionPattern<mlir::bf::Input> {
     }
 };
 
+struct ConvertLoop : mlir::OpConversionPattern<mlir::bf::Loop> {
+    using mlir::OpConversionPattern<mlir::bf::Loop>::OpConversionPattern;
+
+    mlir::LogicalResult
+    matchAndRewrite(mlir::bf::Loop op, OpAdaptor adaptor,
+                    mlir::ConversionPatternRewriter &rewriter) const override {
+        auto *currentBlock = op->getBlock();
+
+        auto loc = rewriter.getUnknownLoc();
+        rewriter.setInsertionPoint(op);
+        auto zero = rewriter.create<mlir::arith::ConstantIntOp>(loc, 0, 8);
+
+        rewriter.setInsertionPointAfter(op);
+        auto *loopBlock =
+            rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
+        rewriter.setInsertionPointToStart(loopBlock);
+        auto *dstBlock =
+            rewriter.splitBlock(loopBlock, rewriter.getInsertionPoint());
+
+        {
+            // handle `[`
+            rewriter.setInsertionPoint(op);
+            auto [gep, load] = getDataPointerValue(rewriter);
+            auto cmp = rewriter.create<mlir::arith::CmpIOp>(
+                op.getLoc(), mlir::arith::CmpIPredicate::eq, load, zero);
+            // if zero, jump to the dst block
+            rewriter.create<mlir::cf::CondBranchOp>(op.getLoc(), cmp, dstBlock,
+                                                    loopBlock);
+        }
+
+        {
+            // handle the inner body
+            if (!op.getRegion().empty()) {
+                auto *srcBlock = &op.getRegion().front();
+                rewriter.inlineBlockBefore(srcBlock, loopBlock,
+                                           loopBlock->end());
+            }
+        }
+
+        {
+            // handle `]`
+            rewriter.setInsertionPointToEnd(loopBlock);
+            auto [gep, load] = getDataPointerValue(rewriter);
+            auto cmp = rewriter.create<mlir::arith::CmpIOp>(
+                op.getLoc(), mlir::arith::CmpIPredicate::ne, load, zero);
+            // if non-zero, jump to loop block
+            rewriter.create<mlir::cf::CondBranchOp>(op.getLoc(), cmp, loopBlock,
+                                                    dstBlock);
+        }
+
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
+
 struct BfToStandard : impl::BFToStandardBase<BfToStandard> {
     void runOnOperation() override {
         // first, populate the global values
@@ -213,7 +268,7 @@ struct BfToStandard : impl::BFToStandardBase<BfToStandard> {
         mlir::RewritePatternSet patterns(context);
         patterns.insert<ConvertPtrIncrement, ConvertPtrDecrement,
                         ConvertDataIncrement, ConvertDataDecrement,
-                        ConvertOutput, ConvertInput>(context);
+                        ConvertOutput, ConvertInput, ConvertLoop>(context);
 
         mlir::ConversionTarget target(*context);
         target.addIllegalDialect<mlir::bf::BFDialect>();

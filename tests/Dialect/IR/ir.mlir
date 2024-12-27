@@ -23,3 +23,9 @@ bf.loop.start
 
 bf.loop.end
 // CHECK: bf.loop.end
+
+bf.loop {
+
+}
+// CHECK: bf.loop {
+// CHECK-NEXT: }

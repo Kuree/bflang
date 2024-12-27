@@ -7,7 +7,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 
-class BF_Op<string mnemonic> : Op<BF_Dialect, mnemonic> {
+class BF_Op<string mnemonic, list<Trait> traits = []> : Op<BF_Dialect, mnemonic, traits> {
     let assemblyFormat = "attr-dict";
 }
 
@@ -41,6 +41,14 @@ def BF_LoopStart : BF_Op<"loop.start"> {
 
 def BF_LoopEnd : BF_Op<"loop.end"> {
   let summary = "If the byte at the data pointer is nonzero, then instead of moving the instruction pointer forward to the next command, jump it back to the command after the matching `[` command.";
+}
+
+def BF_Loop : BF_Op<"loop", [RecursiveMemoryEffects]> {
+  let summary = "High-level loop region to represent a `[]` code block";
+
+  let regions = (region MaxSizedRegion<1>:$region);
+
+  let assemblyFormat = "$region attr-dict";
 }
 
 #endif  // IR_OPS_TD

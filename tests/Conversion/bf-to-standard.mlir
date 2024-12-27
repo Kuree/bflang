@@ -1,4 +1,4 @@
-// RUN: bf-opt --bf-to-standard --split-input-file %s | FileCheck %s
+// RUN: bf-opt --bf-to-standard --split-input-file --allow-unregistered-dialect %s | FileCheck %s
 
 func.func @ptr_increment() {
   bf.ptr.increment
@@ -90,3 +90,36 @@ func.func @input() {
 // CHECK: %[[GEP:.*]] = llvm.getelementptr %[[DATA]][%[[DATA_PTR_VAL]]] : (!llvm.ptr, i32) -> !llvm.ptr, i8
 // CHECK: %[[VAL:.*]] = call @getchar() : () -> i8
 // CHECK: llvm.store %[[VAL]], %[[GEP]] : i8, !llvm.ptr
+
+
+// -----
+
+func.func @loop() {
+  "op.op"() : () -> ()
+  bf.loop {
+    "op.op"() : () -> ()
+  }
+  return
+}
+
+// CHECK-LABEL: @loop
+// CHECK:   "op.op"() : () -> ()
+// CHECK:   %[[ZERO:.*]] = arith.constant 0 : i8
+// CHECK:   %[[DATA_PTR_BEFORE:.*]] = llvm.mlir.addressof @__data_ptr : !llvm.ptr
+// CHECK:   %[[DATA_PTR_VAL_BEFORE:.*]] = llvm.load %[[DATA_PTR_BEFORE]] : !llvm.ptr -> i32
+// CHECK:   %[[DATA_BEFORE:.*]] = llvm.mlir.addressof @__data : !llvm.ptr
+// CHECK:   %[[GEP_BEFORE:.*]] = llvm.getelementptr %[[DATA_BEFORE]][%[[DATA_PTR_VAL_BEFORE]]] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+// CHECK:   %[[DATA_VAL_BEFORE:.*]] = llvm.load %[[GEP_BEFORE]] : !llvm.ptr -> i8
+// CHECK:   %[[CMP_EQ_ZERO:.*]] = arith.cmpi eq, %[[DATA_VAL_BEFORE]], %[[ZERO]] : i8
+// CHECK:   cf.cond_br %[[CMP_EQ_ZERO]], ^[[AFTER_LOOP_BB:.*]], ^[[LOOP_BB:.*]]
+// CHECK: ^[[LOOP_BB]]:
+// CHECK:   "op.op"() : () -> ()
+// CHECK:   %[[DATA_PTR_AFTER:.*]] = llvm.mlir.addressof @__data_ptr : !llvm.ptr
+// CHECK:   %[[DATA_PTR_VAL_AFTER:.*]] = llvm.load %[[DATA_PTR_AFTER]] : !llvm.ptr -> i32
+// CHECK:   %[[DATA_AFTER:.*]] = llvm.mlir.addressof @__data : !llvm.ptr
+// CHECK:   %[[GEP_AFTER:.*]] = llvm.getelementptr %[[DATA_AFTER]][%[[DATA_PTR_VAL_AFTER]]] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+// CHECK:   %[[DATA_VAL_AFTER:.*]] = llvm.load %[[GEP_AFTER]] : !llvm.ptr -> i8
+// CHECK:   %[[CMP_NE_ZERO:.*]] = arith.cmpi ne, %[[DATA_VAL_AFTER]], %[[ZERO]] : i8
+// CHECK:   cf.cond_br %[[CMP_NE_ZERO]], ^[[LOOP_BB]], ^[[AFTER_LOOP_BB]]
+// CHECK: ^[[AFTER_LOOP_BB]]:
+// CHECK-NEXT: return
