@@ -5,8 +5,4 @@ target_link_libraries(
         bf-opt
         PRIVATE MLIROptLib
         MLIRBF
-        MLIRControlFlowDialect
-        MLIRArithDialect
-        MLIRSCFDialect
-        MLIRFuncDialect
-        MLIRLLVMDialect)
+        MLIRBFConversions)
