@@ -8,5 +8,4 @@
 #define GET_OP_CLASSES
 #include "IR/BFOps.h.inc"
 
-
-#endif //BFC_BFOPS_HH
+#endif // BFC_BFOPS_HH

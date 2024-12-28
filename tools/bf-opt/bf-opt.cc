@@ -6,8 +6,8 @@
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
 
 #include "Conversion/Passes.hh"
-#include "Transforms/Passes.hh"
 #include "IR/BFDialect.hh"
+#include "Transforms/Passes.hh"
 
 int main(int argc, char *argv[]) {
     mlir::DialectRegistry registry;

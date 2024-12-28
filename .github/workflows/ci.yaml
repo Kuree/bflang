@@ -1,0 +1,8 @@
+name: bfclang CI test
+on: [push]
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: find lib/ include/ tools/ -iname *.hh -o -iname *.cc | xargs clang-format -n -Werror --style=file
