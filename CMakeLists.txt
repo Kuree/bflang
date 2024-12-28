@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(bfc CXX)
+project(bflang CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
