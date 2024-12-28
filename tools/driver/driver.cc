@@ -12,6 +12,7 @@
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
+#include "mlir/Transforms/Passes.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/TargetRegistry.h"
@@ -152,6 +153,15 @@ void loadPasses(mlir::PassManager &pm) {
         return;
 
     pm.addPass(mlir::bf::createBFToStandard());
+
+    if (optimizationLevel == OptLevel::O1) {
+        pm.addPass(mlir::createCanonicalizerPass());
+        pm.addPass(mlir::createCSEPass());
+        pm.addPass(mlir::bf::createPromoteDataPointer());
+        pm.addPass(mlir::createMem2Reg());
+        pm.addPass(mlir::createCanonicalizerPass());
+        pm.addPass(mlir::createCSEPass());
+    }
 
     if (emitAssembly && emitMLIR)
         return;

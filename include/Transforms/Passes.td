@@ -15,4 +15,12 @@ def ValidateBF : Pass<"validate-bf"> {
   let summary = "Validate BF dialect";
 }
 
+def PromoteDataPointer : Pass<"promote-data-ptr"> {
+  let summary = "Promote data pointer to local stack";
+  let dependentDialects = [
+    "mlir::LLVM::LLVMDialect",
+    "mlir::arith::ArithDialect"
+  ];
+}
+
 #endif  // TRANSFORMS_PASSES_TD
