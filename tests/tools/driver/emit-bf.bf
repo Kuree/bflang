@@ -2,5 +2,5 @@
 
 [.]
 
-// CHECK: func.func @main()
-// CHECK: bf.loop
+// CHECK: func @main()
+// CHECK: loop

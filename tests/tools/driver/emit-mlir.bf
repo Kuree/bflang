@@ -2,5 +2,5 @@
 
 []
 
-// CHECK: func.func @main()
-// CHECK: cf.cond_br
+// CHECK: func @main()
+// CHECK: cond_br

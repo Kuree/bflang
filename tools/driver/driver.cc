@@ -178,11 +178,9 @@ mlir::LogicalResult runLinker(llvm::Module &module) {
         llvm::errs() << "error: unable to create temp file\n";
         return mlir::failure();
     }
-    llvm::raw_fd_ostream os(tempFile->FD, true);
+    llvm::raw_fd_ostream os(tempFile->FD, false);
     llvm::WriteBitcodeToFile(module, os);
-    // os << module;
     os.flush();
-    os.close();
 
     // call the linker
 #ifdef __gnu_linux__
@@ -210,7 +208,7 @@ mlir::LogicalResult runLinker(llvm::Module &module) {
     args.emplace_back("/lib/x86_64-linux-gnu/Scrt1.o");
     args.emplace_back(tempFile->TmpName.c_str());
     args.emplace_back("-o");
-    std::string outName = outputFileName.getValue();
+    auto outName = std::string{outputFileName.getValue()};
     args.emplace_back(outName.c_str());
 
     // the linker flag construction is from here
@@ -230,7 +228,11 @@ mlir::LogicalResult runLinker(llvm::Module &module) {
         return mlir::failure();
     }
     auto error = tempFile->discard();
-    return error ? mlir::failure() : mlir::success();
+    if (error) {
+        llvm::errs() << "error: " << error << "\n";
+        return mlir::failure();
+    }
+    return mlir::success();
 }
 
 std::optional<llvm::DataLayout> getDataLayout() {
