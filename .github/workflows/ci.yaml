@@ -13,11 +13,15 @@ jobs:
     steps:
       - name: install packages
         run: |
-          sudo apt-get update && sudo apt-get install libllvm18 mlir-18-tools libmlir-18 libmlir-18-dev liblldb-18
+          sudo apt-get update && sudo apt-get install -y libllvm18 llvm-18-dev mlir-18-tools libmlir-18 libmlir-18-dev liblld-18 liblld-18-dev cmake ninja-build
           pip3 install lit
       - uses: actions/checkout@v4
       - name: configure
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm/ -DLLVM_EXTERNAL_LIT=`which lit`
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm/ -DLLVM_EXTERNAL_LIT=`which lit` -GNinja
+      - name: build and test
+        run: |
+          cd build
+          ninja check-bf
