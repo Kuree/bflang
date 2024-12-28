@@ -6,3 +6,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: find lib/ include/ tools/ -iname *.hh -o -iname *.cc | xargs clang-format -n -Werror --style=file
+
+  build-and-test:
+    runs-on: ubuntu-20.04
+    needs: clang-format
+    steps:
+      - name: install packages
+        run: |
+          sudo apt-get update && sudo apt-get install libllvm18 mlir-18-tools libmlir-18 libmlir-18-dev liblldb-18
+          pip3 install lit
+      - uses: actions/checkout@v4
+      - name: configure
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm/ -DLLVM_EXTERNAL_LIT=`which lit`
