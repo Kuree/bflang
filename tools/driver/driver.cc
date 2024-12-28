@@ -207,6 +207,7 @@ mlir::LogicalResult runLinker(llvm::Module &module) {
     return mlir::failure();
 #endif
     args.emplace_back("/lib/x86_64-linux-gnu/Scrt1.o");
+    args.emplace_back("/usr/lib/x86_64-linux-gnu/crti.o");
     args.emplace_back(tempFile->TmpName.c_str());
     args.emplace_back("-o");
     auto outName = std::string{outputFileName.getValue()};
