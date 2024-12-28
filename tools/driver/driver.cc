@@ -292,7 +292,8 @@ int main(int argc, char *argv[]) {
     llvm::SourceMgr sourceMgr;
     mlir::SourceMgrDiagnosticHandler sourceMgrHandler(sourceMgr, &mlirContext);
 
-    auto source = llvm::MemoryBuffer::getFileOrSTDIN(inputFileName);
+    auto source = llvm::MemoryBuffer::getFileOrSTDIN(
+        inputFileName.empty() ? std::string{"-"} : inputFileName.getValue());
     if (!source) {
         auto error = source.getError();
         llvm::errs() << "error opening file " << inputFileName << ": "
