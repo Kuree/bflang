@@ -161,6 +161,7 @@ void loadPasses(mlir::PassManager &pm) {
         pm.addPass(mlir::createMem2Reg());
         pm.addPass(mlir::createCanonicalizerPass());
         pm.addPass(mlir::createCSEPass());
+        pm.addPass(mlir::bf::createOptimizeLoadStore());
     }
 
     if (emitAssembly && emitMLIR)

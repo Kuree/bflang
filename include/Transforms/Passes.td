@@ -23,4 +23,8 @@ def PromoteDataPointer : Pass<"promote-data-ptr"> {
   ];
 }
 
+def OptimizeLoadStore : Pass<"optimize-load-store"> {
+  let summary = "Optimize load and store";
+}
+
 #endif  // TRANSFORMS_PASSES_TD
