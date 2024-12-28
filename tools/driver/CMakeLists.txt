@@ -10,6 +10,7 @@ target_link_libraries(bflang PRIVATE
         MLIRControlFlowToLLVM
         MLIRBuiltinToLLVMIRTranslation
         MLIRLLVMToLLVMIRTranslation
+        MLIRExecutionEngineUtils
 
         lldELF
 )

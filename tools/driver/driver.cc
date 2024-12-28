@@ -7,6 +7,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/ExecutionEngine/OptUtils.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
@@ -218,9 +219,6 @@ mlir::LogicalResult runLinker(llvm::Module &module) {
     args.emplace_back("-L/lib/x86_64-linux-gnu");
     args.emplace_back("-lc");
 
-    if (optimizationLevel == OptLevel::O1)
-        args.emplace_back("-O1");
-
     auto ldError = lld::lldMain(args, llvm::outs(), llvm::errs(),
                                 {{lld::Gnu, &lld::elf::link}});
     if (ldError.retCode) {
@@ -324,6 +322,14 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     llvmModule->setDataLayout(*dataLayout);
+    if (optimizationLevel != OptLevel::O0) {
+        auto optPipeline = mlir::makeOptimizingTransformer(3, 0, nullptr);
+        auto error = optPipeline(llvmModule.get());
+        if (error) {
+            llvm::errs() << "unable to optimize LLVM IR\n";
+            return EXIT_FAILURE;
+        }
+    }
 
     if (emitAssembly && emitLLVM) {
         return mlir::failed(emitIRToOutput(llvmModule.get())) ? EXIT_FAILURE
