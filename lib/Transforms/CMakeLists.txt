@@ -2,7 +2,7 @@ add_mlir_library(MLIRBFTransforms
         LiftLoopStartEnd.cc
         ValidateBF.cc
         PromoteDataPointer.cc
-        OptimizeLoadStore.cc
+        OptimizeUnmodifiedLoad.cc
 
         ADDITIONAL_HEADER_DIRS
 

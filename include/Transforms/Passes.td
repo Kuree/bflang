@@ -23,8 +23,12 @@ def PromoteDataPointer : Pass<"promote-data-ptr"> {
   ];
 }
 
-def OptimizeLoadStore : Pass<"optimize-load-store"> {
-  let summary = "Optimize load and store";
+def OptimizeUnModifiedLoad : Pass<"optimize-unmodified-load"> {
+  let summary = "Optimize unmodified load";
+  let dependentDialects = [
+    "mlir::cf::ControlFlowDialect",
+    "mlir::arith::ArithDialect"
+  ];
 }
 
 #endif  // TRANSFORMS_PASSES_TD
