@@ -6,8 +6,9 @@ configure_lit_site_cfg(
 )
 
 set (MLIR_TEST_DEPENDS
-    FileCheck count not
-    bf-opt
+        FileCheck count not
+        bf-opt
+        bflang
 )
 
 add_lit_testsuite(check-bf "Running the brainfuck regression tests"

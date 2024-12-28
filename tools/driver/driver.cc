@@ -32,6 +32,14 @@ enum OptLevel { O0, O1 };
 
 llvm::cl::opt<bool> emitAssembly{
     "S", llvm::cl::desc("Produce an assembly file in MLIR.")};
+
+llvm::cl::opt<bool> emitLLVM{"emit-llvm", llvm::cl::desc("Emit LLVM IR")};
+
+llvm::cl::opt<bool> emitMLIR{"emit-mlir", llvm::cl::desc("Emit MLIR IR")};
+
+llvm::cl::opt<bool> emitBfMLIR{"emit-bf",
+                               llvm::cl::desc("Emit MLIR in BF dialect")};
+
 llvm::cl::opt<std::string> outputFileName{
     "o", llvm::cl::desc("Write output to file."), llvm::cl::value_desc("file"),
     llvm::cl::Required};
@@ -140,7 +148,14 @@ void loadPasses(mlir::PassManager &pm) {
     pm.addPass(mlir::bf::createValidateBF());
     pm.addPass(mlir::bf::createLiftLoopStartEnd());
 
+    if (emitAssembly && emitBfMLIR)
+        return;
+
     pm.addPass(mlir::bf::createBFToStandard());
+
+    if (emitAssembly && emitMLIR)
+        return;
+
     pm.addPass(mlir::createArithToLLVMConversionPass());
     pm.addPass(mlir::createConvertControlFlowToLLVMPass());
     pm.addPass(mlir::createConvertFuncToLLVMPass());
@@ -219,10 +234,36 @@ std::optional<llvm::DataLayout> getDataLayout() {
     return tm->createDataLayout();
 }
 
+template <typename T> mlir::LogicalResult emitIRToOutput(T *module) {
+    if (outputFileName == "-") {
+        llvm::outs() << *module;
+        return mlir::success();
+    }
+
+    std::error_code ec;
+    llvm::raw_fd_ostream os(outputFileName, ec);
+    if (ec) {
+        llvm::errs() << ec.message() << "\n";
+        return mlir::failure();
+    }
+    os << *module;
+    return mlir::success();
+}
+
+mlir::LogicalResult checkCLIArgs() {
+    if (!emitAssembly && (emitBfMLIR || emitLLVM || emitMLIR)) {
+        llvm::errs() << "'-S' must be specified to emit IR\n";
+        return mlir::failure();
+    }
+    return mlir::success();
+}
+
 } // namespace
 
 int main(int argc, char *argv[]) {
     llvm::cl::ParseCommandLineOptions(argc, argv);
+    if (mlir::failed(checkCLIArgs()))
+        return EXIT_FAILURE;
 
     mlir::MLIRContext mlirContext;
     mlirContext
@@ -252,6 +293,12 @@ int main(int argc, char *argv[]) {
     if (mlir::failed(pm.run(*mlirModule)))
         return EXIT_FAILURE;
 
+    if (emitAssembly && (emitBfMLIR || emitMLIR)) {
+        return mlir::failed(emitIRToOutput(mlirModule->getOperation()))
+                   ? EXIT_FAILURE
+                   : EXIT_SUCCESS;
+    }
+
     llvm::LLVMContext llvmContext;
     auto llvmModule = mlir::translateModuleToLLVMIR(*mlirModule, llvmContext);
     llvmModule->setTargetTriple(LLVM_DEFAULT_TARGET_TRIPLE);
@@ -261,6 +308,11 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     llvmModule->setDataLayout(*dataLayout);
+
+    if (emitAssembly && emitLLVM) {
+        return mlir::failed(emitIRToOutput(llvmModule.get())) ? EXIT_FAILURE
+                                                              : EXIT_SUCCESS;
+    }
 
     // need to write it to a file and then call lld to make it an executable
     if (mlir::failed(runLinker(*llvmModule)))

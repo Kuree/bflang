@@ -45,7 +45,8 @@ llvm_config.with_environment("PATH", config.llvm_tools_dir, append_path=True)
 
 tool_dirs = [config.project_tools_dir, config.llvm_tools_dir]
 tools = [
-    "bf-opt"
+    "bf-opt",
+    "bflang"
 ]
 
 llvm_config.add_tool_substitutions(tools, tool_dirs)
