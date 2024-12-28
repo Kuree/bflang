@@ -209,6 +209,9 @@ mlir::LogicalResult runLinker(llvm::Module &module) {
     args.emplace_back("-L/lib/x86_64-linux-gnu");
     args.emplace_back("-lc");
 
+    if (optimizationLevel == OptLevel::O1)
+        args.emplace_back("-O1");
+
     auto ldError = lld::lldMain(args, llvm::outs(), llvm::errs(),
                                 {{lld::Gnu, &lld::elf::link}});
     if (ldError.retCode) {
