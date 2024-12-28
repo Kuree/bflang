@@ -25,11 +25,7 @@
 #include "IR/BFOps.hh"
 #include "Transforms/Passes.hh"
 
-LLD_HAS_DRIVER(coff)
 LLD_HAS_DRIVER(elf)
-LLD_HAS_DRIVER(mingw)
-LLD_HAS_DRIVER(macho)
-LLD_HAS_DRIVER(wasm)
 
 namespace {
 enum OptLevel { O0, O1 };
@@ -198,8 +194,8 @@ mlir::LogicalResult runLinker(llvm::Module &module) {
     args.emplace_back("-L/lib/x86_64-linux-gnu");
     args.emplace_back("-lc");
 
-    auto ldError =
-        lld::lldMain(args, llvm::outs(), llvm::errs(), LLD_ALL_DRIVERS);
+    auto ldError = lld::lldMain(args, llvm::outs(), llvm::errs(),
+                                {{lld::Gnu, &lld::elf::link}});
     if (ldError.retCode) {
         (void)tempFile->discard();
         return mlir::failure();

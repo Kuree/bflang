@@ -1,6 +1,6 @@
-add_llvm_executable(bfc driver.cc)
+add_llvm_executable(bflang driver.cc)
 
-target_link_libraries(bfc PRIVATE
+target_link_libraries(bflang PRIVATE
         MLIRIR
         MLIRBFTransforms
         MLIRBFConversions
@@ -11,10 +11,5 @@ target_link_libraries(bfc PRIVATE
         MLIRBuiltinToLLVMIRTranslation
         MLIRLLVMToLLVMIRTranslation
 
-        lldCommon
-        lldCOFF
         lldELF
-        lldMachO
-        lldMinGW
-        lldWasm
 )
