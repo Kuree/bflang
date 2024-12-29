@@ -13,4 +13,5 @@ target_link_libraries(bflang PRIVATE
         MLIRExecutionEngineUtils
 
         clangDriver
+        clangFrontend
 )

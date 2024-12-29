@@ -26,6 +26,8 @@
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Frontend/Utils.h"
+#include <clang/Frontend/TextDiagnosticBuffer.h>
+#include <clang/Frontend/TextDiagnosticPrinter.h>
 
 #include "Conversion/Passes.hh"
 #include "IR/BFOps.hh"
@@ -68,6 +70,15 @@ llvm::cl::opt<std::string> inputFileName(llvm::cl::Positional,
 llvm::cl::opt<bool> enableDebug("g",
                                 llvm::cl::desc("Generate debug information"),
                                 llvm::cl::cat(compilerCategory));
+
+llvm::cl::opt<std::string> targetTriple{
+    "target", llvm::cl::desc("Generate code for the given target"),
+    llvm::cl::init(LLVM_DEFAULT_TARGET_TRIPLE),
+    llvm::cl::cat(compilerCategory)};
+
+llvm::cl::opt<std::string> linkerName{
+    "fuse-ld", llvm::cl::init(""), llvm::cl::cat(compilerCategory),
+    llvm::cl::desc("Linker name"), llvm::cl::AlwaysPrefix};
 
 void parseCode(
     llvm::SourceMgr &sourceMgr, uint32_t bufferId, mlir::OpBuilder &builder,
@@ -212,8 +223,7 @@ mlir::LogicalResult runLinker(llvm::Module &module) {
     llvm::InitializeAllAsmPrinters();
 
     std::string error;
-    auto *target =
-        llvm::TargetRegistry::lookupTarget(LLVM_DEFAULT_TARGET_TRIPLE, error);
+    auto *target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
     if (!target) {
         llvm::errs() << error << "\n";
         return mlir::failure();
@@ -221,10 +231,10 @@ mlir::LogicalResult runLinker(llvm::Module &module) {
 
     llvm::TargetOptions opt;
     auto targetMachine = target->createTargetMachine(
-        LLVM_DEFAULT_TARGET_TRIPLE, "generic", "", opt, llvm::Reloc::PIC_);
+        targetTriple, "generic", "", opt, llvm::Reloc::PIC_);
 
     module.setDataLayout(targetMachine->createDataLayout());
-    module.setTargetTriple(LLVM_DEFAULT_TARGET_TRIPLE);
+    module.setTargetTriple(targetTriple);
 
     auto outName = std::string{outputFileName.getValue()};
     auto tempFile = llvm::sys::fs::TempFile::create(outName + ".bfc.%%%%%%.o");
@@ -247,15 +257,24 @@ mlir::LogicalResult runLinker(llvm::Module &module) {
     pass.run(module);
     os.flush();
 
-    clang::IntrusiveRefCntPtr<clang::DiagnosticOptions> DiagOpts =
+    clang::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts =
         new clang::DiagnosticOptions();
-    clang::IntrusiveRefCntPtr<clang::DiagnosticIDs> DiagID(
+    clang::IntrusiveRefCntPtr<clang::DiagnosticIDs> diagID(
         new clang::DiagnosticIDs());
-    clang::DiagnosticsEngine diagnosticsEngine(DiagID, DiagOpts);
-    clang::driver::Driver driver("", LLVM_DEFAULT_TARGET_TRIPLE,
-                                 diagnosticsEngine);
-    auto compilation = driver.BuildCompilation(
-        {"", "-o", outName.c_str(), tempFile->TmpName.c_str()});
+    clang::TextDiagnosticPrinter diagBuffer(llvm::errs(), &*diagOpts);
+    clang::DiagnosticsEngine diagnosticsEngine(diagID, diagOpts, &diagBuffer,
+                                               false);
+    clang::driver::Driver driver("", targetTriple, diagnosticsEngine);
+    llvm::SmallVector<const char *> args = {"", "-o", outName.c_str(),
+                                            tempFile->TmpName.c_str()};
+    auto linkerNameOpt = "-fuse-ld" + linkerName;
+    if (!linkerName.empty()) {
+        args.emplace_back(linkerNameOpt.c_str());
+    }
+    auto targetStr = "--target=" + targetTriple.getValue();
+    args.emplace_back(targetStr.c_str());
+
+    auto compilation = driver.BuildCompilation(args);
     if (!compilation) {
         llvm::errs() << "error: fail to build compilation job\n";
         return mlir::failure();
