@@ -1,4 +1,3 @@
-#include "lld/Common/Driver.h"
 #include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
@@ -15,6 +14,7 @@
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 #include "mlir/Transforms/Passes.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/CommandLine.h"
@@ -23,11 +23,13 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Target/TargetMachine.h"
 
+#include "clang/Driver/Compilation.h"
+#include "clang/Driver/Driver.h"
+#include "clang/Frontend/Utils.h"
+
 #include "Conversion/Passes.hh"
 #include "IR/BFOps.hh"
 #include "Transforms/Passes.hh"
-
-LLD_HAS_DRIVER(elf)
 
 namespace {
 enum OptLevel { O0, O1 };
@@ -189,80 +191,88 @@ void loadPasses(mlir::PassManager &pm) {
     pm.addPass(mlir::createConvertFuncToLLVMPass());
 }
 
+struct TempFileGuard {
+    explicit TempFileGuard(llvm::sys::fs::TempFile &tempFile)
+        : tempFile(tempFile) {}
+    llvm::sys::fs::TempFile &tempFile;
+
+    ~TempFileGuard() {
+        auto error = tempFile.discard();
+        if (error) {
+            llvm::errs() << "error: failed to delete " << tempFile.TmpName;
+        }
+    }
+};
+
 mlir::LogicalResult runLinker(llvm::Module &module) {
-    auto tempFile = llvm::sys::fs::TempFile::create("bfc.%%%%%%.bc");
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
+    llvm::InitializeAllAsmPrinters();
+
+    std::string error;
+    auto *target =
+        llvm::TargetRegistry::lookupTarget(LLVM_DEFAULT_TARGET_TRIPLE, error);
+    if (!target) {
+        llvm::errs() << error << "\n";
+        return mlir::failure();
+    }
+
+    llvm::TargetOptions opt;
+    auto targetMachine = target->createTargetMachine(
+        LLVM_DEFAULT_TARGET_TRIPLE, "generic", "", opt, llvm::Reloc::PIC_);
+
+    module.setDataLayout(targetMachine->createDataLayout());
+    module.setTargetTriple(LLVM_DEFAULT_TARGET_TRIPLE);
+
+    auto outName = std::string{outputFileName.getValue()};
+    auto tempFile = llvm::sys::fs::TempFile::create(outName + ".bfc.%%%%%%.o");
     if (!tempFile) {
         llvm::errs() << "error: unable to create temp file\n";
         return mlir::failure();
     }
+    TempFileGuard fileGuard(*tempFile);
+
     llvm::raw_fd_ostream os(tempFile->FD, false);
-    llvm::WriteBitcodeToFile(module, os);
-    os.flush();
 
-    // call the linker
-#ifdef __gnu_linux__
-    std::string linkerName = "ld.lld";
-#else
-    llvm::errs() << "Unsupported operating system\n";
-    return mlir::failure();
-#endif
-    llvm::SmallVector<const char *> args = {linkerName.c_str(),
-                                            "-z",
-                                            "relro",
-                                            "--hash-style=gnu",
-                                            "--build-id",
-                                            "--eh-frame-hdr",
-                                            "-m",
-                                            "elf_x86_64",
-                                            "-pie",
-                                            "-dynamic-linker",
-                                            "/lib64/ld-linux-x86-64.so.2"};
+    llvm::legacy::PassManager pass;
+    auto FileType = llvm::CodeGenFileType::ObjectFile;
 
-#ifndef __x86_64__
-    llvm::errs() << "Unsupported architecture\n";
-    return mlir::failure();
-#endif
-    args.emplace_back("/lib/x86_64-linux-gnu/Scrt1.o");
-    args.emplace_back("/usr/lib/x86_64-linux-gnu/crti.o");
-    args.emplace_back(tempFile->TmpName.c_str());
-    args.emplace_back("-o");
-    auto outName = std::string{outputFileName.getValue()};
-    args.emplace_back(outName.c_str());
-
-    // the linker flag construction is from here
-    // https://clang.llvm.org/doxygen/classclang_1_1driver_1_1tools_1_1gnutools_1_1Linker.html
-    // copied from `clang -v` on linux
-
-    args.emplace_back("-L/lib/x86_64-linux-gnu");
-    args.emplace_back("-lc");
-
-    auto ldError = lld::lldMain(args, llvm::outs(), llvm::errs(),
-                                {{lld::Gnu, &lld::elf::link}});
-    if (ldError.retCode) {
-        (void)tempFile->discard();
+    if (targetMachine->addPassesToEmitFile(pass, os, nullptr, FileType)) {
+        llvm::errs() << "error: target can't emit a file of this type\n";
         return mlir::failure();
     }
-    auto error = tempFile->discard();
-    if (error) {
-        llvm::errs() << "error: " << error << "\n";
+
+    pass.run(module);
+    os.flush();
+
+    clang::IntrusiveRefCntPtr<clang::DiagnosticOptions> DiagOpts =
+        new clang::DiagnosticOptions();
+    clang::IntrusiveRefCntPtr<clang::DiagnosticIDs> DiagID(
+        new clang::DiagnosticIDs());
+    clang::DiagnosticsEngine diagnosticsEngine(DiagID, DiagOpts);
+    clang::driver::Driver driver("", LLVM_DEFAULT_TARGET_TRIPLE,
+                                 diagnosticsEngine);
+    auto compilation = driver.BuildCompilation(
+        {"", "-o", outName.c_str(), tempFile->TmpName.c_str()});
+    if (!compilation) {
+        llvm::errs() << "error: fail to build compilation job\n";
+        return mlir::failure();
+    }
+
+    llvm::SmallVector<std::pair<int, const clang::driver::Command *>>
+        failingCommands;
+    auto res = driver.ExecuteCompilation(*compilation, failingCommands);
+
+    if (res) {
+        for (auto [i, cmd] : failingCommands) {
+            driver.generateCompilationDiagnostics(*compilation, *cmd);
+        }
+        llvm::errs() << "error: failed to link\n";
         return mlir::failure();
     }
     return mlir::success();
-}
-
-std::optional<llvm::DataLayout> getDataLayout() {
-    std::string error;
-    llvm::InitializeNativeTarget();
-    auto *const target =
-        llvm::TargetRegistry::lookupTarget(LLVM_DEFAULT_TARGET_TRIPLE, error);
-    if (!target) {
-        llvm::errs() << "error: " << error << "\n";
-        return std::nullopt;
-    }
-
-    auto tm =
-        target->createTargetMachine(LLVM_DEFAULT_TARGET_TRIPLE, "", "", {}, {});
-    return tm->createDataLayout();
 }
 
 template <typename T> mlir::LogicalResult emitIRToOutput(T *module) {
@@ -334,13 +344,7 @@ int main(int argc, char *argv[]) {
 
     llvm::LLVMContext llvmContext;
     auto llvmModule = mlir::translateModuleToLLVMIR(*mlirModule, llvmContext);
-    llvmModule->setTargetTriple(LLVM_DEFAULT_TARGET_TRIPLE);
-    auto dataLayout = getDataLayout();
-    if (!dataLayout) {
-        llvm::errs() << "Unable to get data layout\n";
-        return EXIT_FAILURE;
-    }
-    llvmModule->setDataLayout(*dataLayout);
+
     if (optimizationLevel != OptLevel::O0) {
         auto optPipeline = mlir::makeOptimizingTransformer(3, 0, nullptr);
         auto error = optPipeline(llvmModule.get());

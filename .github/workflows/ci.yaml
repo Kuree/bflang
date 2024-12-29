@@ -5,6 +5,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install Act dependencies
+        if: ${{ env.ACT }}
+        run: |
+          apt-get update && apt-get install -y clang-format
       - run: find lib/ include/ tools/ -iname *.hh -o -iname *.cc | xargs clang-format -n -Werror --style=file
 
   build-and-test:
@@ -13,8 +17,9 @@ jobs:
     steps:
       - name: install packages
         run: |
-          sudo apt-get update && sudo apt-get install -y libllvm18 llvm-18-dev mlir-18-tools libmlir-18 libmlir-18-dev liblld-18 liblld-18-dev cmake ninja-build
+          sudo apt-get update && sudo apt-get install -y libllvm18 llvm-18-dev mlir-18-tools libmlir-18 libmlir-18-dev clang-18 libclang-18-dev libclang-cpp18 cmake ninja-build
           pip3 install lit
+      - run: ls /usr/lib/llvm-18/lib/cmake/ -l
       - uses: actions/checkout@v4
       - name: configure
         run: |

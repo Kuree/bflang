@@ -11,12 +11,13 @@ endif()
 
 find_package(LLVM REQUIRED CONFIG)
 set(MLIR_DIR ${LLVM_LIBRARY_DIR}/cmake/mlir)
-set(LLD_DIR ${LLVM_LIBRARY_DIR}/cmake/lld)
+set(Clang_DIR ${LLVM_LIBRARY_DIR}/cmake/clang)
 find_package(MLIR REQUIRED CONFIG)
-find_package(LLD REQUIRED CONFIG)
+find_package(Clang REQUIRED CONFIG)
 include(${LLVM_DIR}/AddLLVM.cmake)
 include(${LLVM_DIR}/TableGen.cmake)
 include(${MLIR_DIR}/AddMLIR.cmake)
+include(${Clang_DIR}/AddClang.cmake)
 
 # include globally
 include_directories(${LLVM_INCLUDE_DIRS})

@@ -12,5 +12,5 @@ target_link_libraries(bflang PRIVATE
         MLIRLLVMToLLVMIRTranslation
         MLIRExecutionEngineUtils
 
-        lldELF
+        clangDriver
 )
