@@ -31,4 +31,11 @@ def OptimizeUnModifiedLoad : Pass<"optimize-unmodified-load"> {
   ];
 }
 
+def AttachDebugInfo : Pass<"attach-debug-info"> {
+  let summary = "Attach LLVM debug info to operations";
+  let dependentDialects = [
+    "mlir::LLVM::LLVMDialect"
+  ];
+}
+
 #endif  // TRANSFORMS_PASSES_TD

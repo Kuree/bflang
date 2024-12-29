@@ -3,6 +3,7 @@ add_mlir_library(MLIRBFTransforms
         ValidateBF.cc
         PromoteDataPointer.cc
         OptimizeUnmodifiedLoad.cc
+        AttachDebugInfo.cc
 
         ADDITIONAL_HEADER_DIRS
 
