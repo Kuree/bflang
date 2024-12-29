@@ -32,24 +32,33 @@ LLD_HAS_DRIVER(elf)
 namespace {
 enum OptLevel { O0, O1 };
 
+llvm::cl::OptionCategory
+    compilerCategory("Compiler Options",
+                     "Options for controlling the compilation process.");
+
 llvm::cl::opt<bool> emitAssembly{
-    "S", llvm::cl::desc("Produce an assembly file in MLIR.")};
+    "S", llvm::cl::desc("Produce an assembly file in MLIR."),
+    llvm::cl::cat(compilerCategory)};
 
-llvm::cl::opt<bool> emitLLVM{"emit-llvm", llvm::cl::desc("Emit LLVM IR")};
+llvm::cl::opt<bool> emitLLVM{"emit-llvm", llvm::cl::desc("Emit LLVM IR"),
+                             llvm::cl::cat(compilerCategory)};
 
-llvm::cl::opt<bool> emitMLIR{"emit-mlir", llvm::cl::desc("Emit MLIR IR")};
+llvm::cl::opt<bool> emitMLIR{"emit-mlir", llvm::cl::desc("Emit MLIR IR"),
+                             llvm::cl::cat(compilerCategory)};
 
 llvm::cl::opt<bool> emitBfMLIR{"emit-bf",
-                               llvm::cl::desc("Emit MLIR in BF dialect")};
+                               llvm::cl::desc("Emit MLIR in BF dialect"),
+                               llvm::cl::cat(compilerCategory)};
 
 llvm::cl::opt<std::string> outputFileName{
     "o", llvm::cl::desc("Write output to file."), llvm::cl::value_desc("file"),
-    llvm::cl::Required};
+    llvm::cl::Required, llvm::cl::cat(compilerCategory)};
 
-llvm::cl::opt<OptLevel> optimizationLevel(
+llvm::cl::opt<OptLevel> optimizationLevel{
     llvm::cl::desc("Choose optimization level:"),
     llvm::cl::values(clEnumVal(O0, "No optimization"),
-                     clEnumVal(O1, "Enable default optimizations")));
+                     clEnumVal(O1, "Enable default optimizations")),
+    llvm::cl::cat(compilerCategory)};
 
 llvm::cl::opt<std::string> inputFileName(llvm::cl::Positional,
                                          llvm::cl::desc("<input file>"));
@@ -276,6 +285,7 @@ mlir::LogicalResult checkCLIArgs() {
 } // namespace
 
 int main(int argc, char *argv[]) {
+    llvm::cl::HideUnrelatedOptions(compilerCategory);
     llvm::cl::ParseCommandLineOptions(argc, argv);
     if (mlir::failed(checkCLIArgs()))
         return EXIT_FAILURE;
