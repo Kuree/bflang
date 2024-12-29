@@ -1,17 +1,21 @@
 bflang - Brainfuck compiler in MLIR
 -----------------------------------
 `bflang` is a compiler that turns brainfuck code directly into a native executable.
-The executable does not rely on any runtime other than `libc`.
+The executable does not rely on any runtime other than `libc`. It does not come with
+a linker so it relies on the host system to link the final executable.
 
-Currently only `x86_64` on linux is supported.
+# Features
+- Code optimization
+- Debug support
+- Cross-compile (if host system has such an ability)
 
 # How to build
 It should build with LLVM-18+. To install required LLVM toolchains, make sure
-`llvm`, `mlir`, and `lld` are installed properly in your environment. On Ubuntu 20.04+,
+`llvm`, `mlir`, and `clang` are installed properly in your environment. On Ubuntu 20.04+,
 you can install them via
 
 ```shell
-sudo apt-get install -y libllvm18 llvm-18-dev mlir-18-tools libmlir-18 libmlir-18-dev liblld-18 liblld-18-dev
+sudo apt-get install -y libllvm18 llvm-18-dev mlir-18-tools libmlir-18 libmlir-18-dev clang-18 libclang-18-dev
 ```
 
 Once you have everything installed, run the following command:
@@ -40,6 +44,15 @@ Or pipe it from `STDIN`:
 echo "." | bfclang -O1 -o example
 ```
 
+Use `gdb` to debug line by line:
+```shell
+bflang -O0 -g example.bf -o example
+gdb example
+(gdb) b example.bf:1
+(gdb) run
+(gdb) p __data_ptr
+```
+
 See `bflang -h` for more details.
 
 # Optimizations
@@ -61,3 +74,10 @@ that cannot be done in LLVM so far.
 
 One optimization done here is the unmodified load. If the compiler can prove that
 a particular cell is untouched, any load from that cell can be replaced with `0`.
+
+# Debugging
+Debugging is handled by LLVM's source-level debugging support. To enable debugging,
+use `-O0 -g` when invoking the compiler. The array and data pointer are represented
+as global variables, `__data` and `__data_ptr` respectively. Breakpoints are also
+supported, and it's recommended to break the source code into multiple lines if you
+want to set breakpoints.
