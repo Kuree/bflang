@@ -63,6 +63,10 @@ llvm::cl::opt<OptLevel> optimizationLevel{
 llvm::cl::opt<std::string> inputFileName(llvm::cl::Positional,
                                          llvm::cl::desc("<input file>"));
 
+llvm::cl::opt<bool> enableDebug("g",
+                                llvm::cl::desc("Generate debug information"),
+                                llvm::cl::cat(compilerCategory));
+
 void parseCode(
     llvm::SourceMgr &sourceMgr, uint32_t bufferId, mlir::OpBuilder &builder,
     const std::function<mlir::FileLineColLoc(uint32_t, uint32_t)> &getLoc) {
@@ -173,6 +177,9 @@ void loadPasses(mlir::PassManager &pm) {
         pm.addPass(mlir::createCSEPass());
         pm.addPass(mlir::bf::createOptimizeUnModifiedLoad());
     }
+
+    if (enableDebug)
+        pm.addPass(mlir::bf::createAttachDebugInfo());
 
     if (emitAssembly && emitMLIR)
         return;
