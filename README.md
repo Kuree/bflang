@@ -10,12 +10,18 @@ a linker so it relies on the host system to link the final executable.
 - Cross-compile (if host system has such an ability)
 
 # How to build
-It should build with LLVM-18+. To install required LLVM toolchains, make sure
+It should build with LLVM-18+. To install required LLVM libraries, make sure the devel version of
 `llvm`, `mlir`, and `clang` are installed properly in your environment. On Ubuntu 20.04+,
 you can install them via
 
 ```shell
 sudo apt-get install -y libllvm18 llvm-18-dev mlir-18-tools libmlir-18 libmlir-18-dev clang-18 libclang-18-dev
+```
+
+On macOS:
+
+```shell
+brew install llvm@18
 ```
 
 Once you have everything installed, run the following command:
@@ -28,6 +34,9 @@ ninja
 ```
 
 Remove `-GNinja` if you prefer `make`. The executable `bflang` will be in `bin/` folder.
+If `cmake` fails to detect LLVM, you can pass in LLVM path manually, `-DLLVM_DIR=${path}`.
+On linux, it's usually `/usr/lib/llvm-18/lib/cmake/llvm/`. On macOS, it's
+`/opt/homebrew/opt/llvm@18/lib/cmake/llvm/`.
 
 If you wish to run the regression tests, make sure to have `lit` installed. You can
 install `lit` via `pip install lit`. Then you can specify the `lit` in the `cmake`
@@ -76,7 +85,7 @@ One optimization done here is the unmodified load. If the compiler can prove tha
 a particular cell is untouched, any load from that cell can be replaced with `0`.
 
 # Debugging
-Debugging is handled by LLVM's source-level debugging support. To enable debugging,
+Debugging is handled by LLVM's source-level debugging framework. To enable debugging,
 use `-O0 -g` when invoking the compiler. The array and data pointer are represented
 as global variables, `__data` and `__data_ptr` respectively. Breakpoints are also
 supported, and it's recommended to break the source code into multiple lines if you
