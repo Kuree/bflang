@@ -11,7 +11,7 @@ jobs:
           apt-get update && apt-get install -y clang-format
       - run: find lib/ include/ tools/ -iname *.hh -o -iname *.cc | xargs clang-format -n -Werror --style=file
 
-  build-and-test:
+  linux:
     runs-on: ubuntu-20.04
     needs: clang-format
     steps:
@@ -26,6 +26,28 @@ jobs:
           mkdir build
           cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm/ -DLLVM_EXTERNAL_LIT=`which lit` -GNinja
+      - name: build and test
+        run: |
+          cd build
+          ninja check-bf
+
+  macos:
+    runs-on: macos-latest
+    needs: clang-format
+    steps:
+      - name: install packages
+        run: |
+          brew install llvm@18 ninja
+          pip3 install --break-system-packages lit
+      - run: |
+          ls /opt/homebrew/opt/llvm@18/lib
+      - uses: actions/checkout@v4
+      - name: configure
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/opt/homebrew/opt/llvm@18/lib/cmake/llvm/ -DLLVM_EXTERNAL_LIT=`which lit` -GNinja \
+            -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm@18/bin/clang++ -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm@18/bin/clang
       - name: build and test
         run: |
           cd build

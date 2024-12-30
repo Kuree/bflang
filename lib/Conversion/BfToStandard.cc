@@ -41,7 +41,7 @@ void insertGlobalSymbols(mlir::Operation *rootOp) {
             loc, array, /*isConstant*/ false, mlir::LLVM::Linkage::Private,
             kDataArrayName,
             builder.getZeroAttr(mlir::RankedTensorType::get(
-                llvm::SmallVector{kDataArraySize}, i8)));
+                llvm::SmallVector{static_cast<int64_t>(kDataArraySize)}, i8)));
 
     // functions
     auto getCharTy = builder.getFunctionType({}, {i8});
