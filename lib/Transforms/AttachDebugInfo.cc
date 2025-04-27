@@ -24,10 +24,18 @@ struct AttachDebugInfo : impl::AttachDebugInfoBase<AttachDebugInfo> {
         auto diFile = builder.getAttr<mlir::LLVM::DIFileAttr>(
             std::string{fileBaseName}, std::string{dirname});
         auto diId = mlir::DistinctAttr::create(builder.getUnitAttr());
+#if LLVM_VERSION_MAJOR <= 18
         auto diCu = builder.getAttr<mlir::LLVM::DICompileUnitAttr>(
             diId, llvm::dwarf::DW_LANG_C11, diFile,
             builder.getStringAttr("bflang"), false,
             mlir::LLVM::DIEmissionKind::Full);
+#else
+        auto diCu = builder.getAttr<mlir::LLVM::DICompileUnitAttr>(
+            diId, llvm::dwarf::DW_LANG_C11, diFile,
+            builder.getStringAttr("bflang"), false,
+            mlir::LLVM::DIEmissionKind::Full,
+            mlir::LLVM::DINameTableKind::Default);
+#endif
 
         auto i32Type = builder.getAttr<mlir::LLVM::DIBasicTypeAttr>(
             llvm::dwarf::DW_TAG_base_type, "int", 32,
@@ -85,11 +93,21 @@ struct AttachDebugInfo : impl::AttachDebugInfoBase<AttachDebugInfo> {
                 auto diRange = builder.getAttr<mlir::LLVM::DISubrangeAttr>(
                     builder.getI64IntegerAttr(totalBits), mlir::IntegerAttr{},
                     mlir::IntegerAttr{}, mlir::IntegerAttr{});
+#if LLVM_VERSION_MAJOR <= 18
                 typeAttr = mlir::LLVM::DICompositeTypeAttr::get(
                     builder.getContext(), llvm::dwarf::DW_TAG_array_type,
                     mlir::StringAttr{}, mlir::LLVM::DIFileAttr{}, 0,
                     mlir::LLVM::DIScopeAttr{}, diElmTy, mlir::LLVM::DIFlags(),
                     totalBits, 0, {});
+#else
+                auto recId =
+                    mlir::DistinctAttr::create(builder.getI32IntegerAttr(0));
+                typeAttr = mlir::LLVM::DICompositeTypeAttr::get(
+                    builder.getContext(), llvm::dwarf::DW_TAG_array_type, recId,
+                    mlir::StringAttr{}, mlir::LLVM::DIFileAttr{}, 0,
+                    mlir::LLVM::DIScopeAttr{}, diElmTy, mlir::LLVM::DIFlags(),
+                    totalBits, 0, {}, {}, {}, {}, {});
+#endif
             } else {
                 return;
             }
