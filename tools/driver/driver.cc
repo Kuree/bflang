@@ -54,6 +54,11 @@ llvm::cl::opt<bool> emitBfMLIR{"emit-bf",
                                llvm::cl::desc("Emit MLIR in BF dialect"),
                                llvm::cl::cat(compilerCategory)};
 
+llvm::cl::opt<uint32_t> arraySize{
+    "array-size",
+    llvm::cl::desc("Array size. Per initial standard it's set to 30,000"),
+    llvm::cl::init(30000l), llvm::cl::cat(compilerCategory)};
+
 llvm::cl::opt<std::string> outputFileName{
     "o", llvm::cl::desc("Write output to file."), llvm::cl::value_desc("file"),
     llvm::cl::Required, llvm::cl::cat(compilerCategory)};

@@ -1,17 +1,17 @@
 #include "IR/BFOps.hh"
 
-#include "mlir/Pass/Pass.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir::bf {
 #define GEN_PASS_DEF_BFTOSTANDARD
 #define GEN_PASS_DECL_BFTOSTANDARD
 #include "Conversion/Passes.h.inc"
-}
+} // namespace mlir::bf
 
 namespace {
 
