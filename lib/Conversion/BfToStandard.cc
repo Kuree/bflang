@@ -1,25 +1,27 @@
-#include "Conversion/Passes.hh"
 #include "IR/BFOps.hh"
 
+#include "mlir/Pass/Pass.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 
+namespace mlir::bf {
 #define GEN_PASS_DEF_BFTOSTANDARD
+#define GEN_PASS_DECL_BFTOSTANDARD
 #include "Conversion/Passes.h.inc"
+}
 
 namespace {
 
 auto constexpr kDataPointerName = "__data_ptr";
 auto constexpr kDataArrayName = "__data";
 // TODO: make the data array size configurable
-auto constexpr kDataArraySize = 30000l;
 auto constexpr kGetCharName = "getchar";
 auto constexpr kPutCharName = "putchar";
 
-void insertGlobalSymbols(mlir::Operation *rootOp) {
+void insertGlobalSymbols(mlir::Operation *rootOp, uint32_t dataSize) {
     auto *symbolOp = mlir::SymbolTable::getNearestSymbolTable(rootOp);
     assert(symbolOp);
     mlir::SymbolTable symbolTable(symbolOp);
@@ -35,13 +37,13 @@ void insertGlobalSymbols(mlir::Operation *rootOp) {
             loc, i32, /*isConstant*/ false, mlir::LLVM::Linkage::Private,
             kDataPointerName, builder.getZeroAttr(i32));
 
-    auto array = builder.getType<mlir::LLVM::LLVMArrayType>(i8, kDataArraySize);
+    auto array = builder.getType<mlir::LLVM::LLVMArrayType>(i8, dataSize);
     if (!symbolTable.lookup(kDataArrayName))
         builder.create<mlir::LLVM::GlobalOp>(
             loc, array, /*isConstant*/ false, mlir::LLVM::Linkage::Private,
             kDataArrayName,
             builder.getZeroAttr(mlir::RankedTensorType::get(
-                llvm::SmallVector{static_cast<int64_t>(kDataArraySize)}, i8)));
+                llvm::SmallVector{static_cast<int64_t>(dataSize)}, i8)));
 
     // functions
     auto getCharTy = builder.getFunctionType({}, {i8});
@@ -267,10 +269,12 @@ struct RemoveYield : mlir::OpConversionPattern<mlir::bf::LoopYield> {
     }
 };
 
-struct BfToStandard : impl::BFToStandardBase<BfToStandard> {
+struct BfToStandard : mlir::bf::impl::BFToStandardBase<BfToStandard> {
+    using Base::Base;
+
     void runOnOperation() override {
         // first, populate the global values
-        insertGlobalSymbols(getOperation());
+        insertGlobalSymbols(getOperation(), dataArraySize);
         // second, split basic blocks based on the loop operations
         // direct dialect conversion
         auto context = &getContext();
@@ -294,9 +298,3 @@ struct BfToStandard : impl::BFToStandardBase<BfToStandard> {
 };
 
 } // namespace
-
-namespace mlir::bf {
-std::unique_ptr<::mlir::Pass> createBFToStandard() {
-    return std::make_unique<BfToStandard>();
-}
-} // namespace mlir::bf

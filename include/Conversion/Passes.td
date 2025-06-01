@@ -10,6 +10,11 @@ def BFToStandard : Pass<"bf-to-standard"> {
     This pass lowers the `bf` dialect to standard MLIR, a mixture of llvm,
     cf, and arith.
   }];
+
+  let options = [
+    Option<"dataArraySize", "data-array-size", "uint32_t", /*default*/"30000l", "Data array size">
+  ];
+
   let dependentDialects = [
     "mlir::arith::ArithDialect",
     "mlir::LLVM::LLVMDialect",

@@ -1,4 +1,5 @@
 // RUN: bf-opt --bf-to-standard --split-input-file --allow-unregistered-dialect %s | FileCheck %s
+// RUN: bf-opt --bf-to-standard=data-array-size=300 --split-input-file --allow-unregistered-dialect %s | FileCheck %s --check-prefix=ARRAY
 
 func.func @ptr_increment() {
   bf.ptr.increment
@@ -11,6 +12,12 @@ func.func @ptr_increment() {
 // CHECK: %[[ONE:.*]] = arith.constant 1 : i32
 // CHECK: %[[ADD:.*]] = arith.addi %[[PTR_VAL]], %[[ONE]] : i32
 // CHECK: llvm.store %[[ADD]], %[[PTR]] : i32, !llvm.ptr
+
+// CHECK: llvm.mlir.global private @__data(dense<0> : tensor<30000xi8>)
+// CHECK-SAME: !llvm.array<30000 x i8>
+
+// ARRAY: llvm.mlir.global private @__data(dense<0> : tensor<300xi8>)
+// ARRAY-SAME: !llvm.array<300 x i8>
 
 // -----
 
