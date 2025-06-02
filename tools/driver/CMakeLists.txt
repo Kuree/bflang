@@ -15,3 +15,5 @@ target_link_libraries(bflang PRIVATE
         clangDriver
         clangFrontend
 )
+
+install(TARGETS bflang RUNTIME DESTINATION bin)
