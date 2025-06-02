@@ -9,6 +9,20 @@ a linker so it relies on the host system to link the final executable.
 - Debug support
 - Cross-compile (if host system has such an ability)
 
+# Getting started
+The easiest way to run the compiler is through docker:
+```shell
+# with proper file system mounting
+docker run --rm -it ghcr.io/kuree/bflang:latest bash
+```
+
+You then will see `bflang` in the `$PATH`:
+```
+# bflang -h
+USAGE: bflang [options] <input file>
+...
+```
+
 # How to build
 It should build with LLVM-18+. To install required LLVM libraries, make sure the devel version of
 `llvm`, `mlir`, and `clang` are installed properly in your environment. On Ubuntu 20.04+,
